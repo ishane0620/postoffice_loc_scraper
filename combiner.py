@@ -1,4 +1,5 @@
 # from os import wait3
+import os
 import pandas as pd
 import scrape_postoffice 
 import get_loc_urls 
@@ -10,7 +11,7 @@ ward_url = 'https://map.japanpost.jp/p/search/search.htm?&cond2=1&cond200=1&&&hi
 
 
 
-async def get_df_of_ward(ward_url, idx):
+async def get_df_of_ward(ward_url):
     # office_list = get_loc_urls.main(ward_url)
     office_list = get_loc_urls.extract_post_offices(get_loc_urls.fetch_soup(ward_url))
     df = pd.DataFrame(office_list)
@@ -23,9 +24,6 @@ async def get_df_of_ward(ward_url, idx):
     df['Latitude'] = pd.DataFrame(lats)
     df['Longitude'] = pd.DataFrame(lons)
 
-
-    
-    df.to_csv(f'{idx}.csv') 
     return df
 
 # res = asyncio.run(get_df_of_ward(ward_url))
@@ -34,12 +32,31 @@ async def get_df_of_ward(ward_url, idx):
 
 def main():
     df = pd.read_csv('office_links.csv')
-    for index, row in df.iterrows():
-        ward_url = row['office_detail_url']
-        prefecture = row['ward_listing_url']
+    
+    # Create output directory if it doesn't exist
+    output_dir = 'prefecture_loc_csvs'
+    os.makedirs(output_dir,exist_ok = True)
 
-        df2 = asyncio.run(get_df_of_ward(ward_url,index))
-    df2.to_csv('office_links_with_coords.csv')
+    # Group by prefecture (ward_listing_url)
+    grouped = df.groupby('ward_listing_url')
+    
+    for prefecture, group_df in grouped:
+        # Combine all offices for this prefecture
+        all_dfs = []
+        
+        for index, row in group_df.iterrows():
+            ward_url = row['office_detail_url']
+            df_ward = asyncio.run(get_df_of_ward(ward_url))
+            all_dfs.append(df_ward)
+        
+        # Concatenate all dataframes for this prefecture
+        combined_df = pd.concat(all_dfs, ignore_index=True)
+        
+        # Save one CSV file per prefecture
+        # Sanitize filename by removing invalid characters
+        safe_prefecture = prefecture.replace('/', '_').replace('\\', '_')
+        output_path = os.path.join(output_dir, f'{safe_prefecture}.csv')
+        combined_df.to_csv(output_path, index=False)
 
 if __name__ == '__main__':
     main()
