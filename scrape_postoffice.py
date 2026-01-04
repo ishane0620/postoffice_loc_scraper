@@ -28,42 +28,39 @@ def extract_coords(html: str) -> Optional[Tuple[float, float]]:
     except ValueError:
         return None
 
-async def main(url):
+async def main(url, timeout=30000):
+    """
+    Scrape post office data from a URL.
+    Args:
+        url: The URL to scrape
+        timeout: Navigation timeout in milliseconds (default 30 seconds)
+    """
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
 
-        # Go to page and wait for network/render to settle
-        await page.goto(url, wait_until="networkidle")
-
-        # Optional: wait for a known selector that contains the address
-        # Replace with a selector you observe in DevTools
         try:
-            await page.wait_for_selector("text=〒", timeout=5000)
-        except:
-            pass
+            # Go to page with timeout and handle network errors
+            await page.goto(url, wait_until="networkidle", timeout=timeout)
 
-        # Dump the live DOM (post-JS), this mirrors DevTools Elements view
-        html = await page.content()
-        coords = (extract_coords(html))
-        postal = (extract_postcode_after_escape(html))
+            # Optional: wait for a known selector that contains the address
+            try:
+                await page.wait_for_selector("text=〒", timeout=5000)
+            except:
+                pass
 
+            # Dump the live DOM (post-JS), this mirrors DevTools Elements view
+            html = await page.content()
+            coords = (extract_coords(html))
+            postal = (extract_postcode_after_escape(html))
 
-        # with open('output.json', 'w') as f:
-        #     json.dump(html, f, indent=2)
-        # Example: extract lat/lng if present in URL or scripts
-        # url = page.url
-        # print(f"Final URL: {url}")
-
-        # If coordinates are embedded in JS variables or data-* attributes,
-        # query them directly via DOM:
-        # example: find any element with data-lat / data-lng attributes
-        
-
-        await browser.close()
-        print([coords, postal])
-        return [coords, postal]
+            await browser.close()
+            print([coords, postal])
+            return [coords, postal]
+        except Exception as e:
+            await browser.close()
+            raise  # Re-raise the exception so caller can handle it
 
 
 POSTCODE_AFTER_ESC_RE = re.compile(
