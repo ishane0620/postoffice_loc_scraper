@@ -12,35 +12,6 @@ from typing import List, Dict
 ward_url = 'https://map.japanpost.jp/p/search/search.htm?&cond2=1&cond200=1&&&his=sa1&&type=ShopA&area1=01&area2=%A4%A2%A4%B5%A4%D2%A4%AB%A4%EF%A4%B7%23%23%B0%B0%C0%EE%BB%D4&slogflg=1&areaptn=1&selnm=%B0%B0%C0%EE%BB%D4'
 
 ERROR_LOG_FILE = 'scraping_errors.json'
-PROGRESS_FILE = 'scraping_progress.json'
-
-def save_progress(prefecture: str, completed_wards: list):
-    """Save progress to JSON file."""
-    progress = {}
-    if os.path.exists(PROGRESS_FILE):
-        try:
-            with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
-                progress = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            progress = {}
-    
-    progress[prefecture] = {
-        'completed_wards': completed_wards,
-        'last_updated': datetime.now().isoformat()
-    }
-    
-    with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(progress, f, indent=2, ensure_ascii=False)
-
-def load_progress() -> Dict:
-    """Load progress from JSON file."""
-    if os.path.exists(PROGRESS_FILE):
-        try:
-            with open(PROGRESS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            return {}
-    return {}
 
 def log_error_to_json(error_data: Dict):
     """Append error to JSON log file."""
@@ -134,9 +105,6 @@ def main():
     output_dir = 'prefecture_loc_csvs'
     os.makedirs(output_dir,exist_ok = True)
 
-    # Load previous progress
-    progress = load_progress()
-
     # Group by prefecture (ward_listing_url)
     grouped = df.groupby('ward_listing_url')
     
@@ -144,77 +112,22 @@ def main():
 
         if prefecture in viewed:
             continue
-        
-        # Check if we have partial progress for this prefecture
-        completed_wards = set()
-        if prefecture in progress:
-            completed_wards = set(progress[prefecture].get('completed_wards', []))
-            print(f"Resuming {prefecture}: {len(completed_wards)} wards already completed")
-        
-        # Load existing CSV data if resuming
-        safe_prefecture = prefecture.replace('/', '_').replace('\\', '_')
-        output_path = os.path.join(output_dir, f'{safe_prefecture}.csv')
-        existing_data = None
-        if os.path.exists(output_path) and completed_wards:
-            try:
-                existing_data = pd.read_csv(output_path)
-                print(f"Loaded {len(existing_data)} existing offices from {safe_prefecture}.csv")
-            except Exception as e:
-                print(f"Warning: Could not load existing CSV: {e}")
-        
         # Combine all offices for this prefecture
         all_dfs = []
         
         for index, row in group_df.iterrows():
             ward_url = row['office_detail_url']
-            
-            # Skip if already completed
-            if ward_url in completed_wards:
-                print(f"Skipping already completed ward: {ward_url}")
-                continue
-            
-            try:
-                df_ward = asyncio.run(get_df_of_ward(ward_url))
-                all_dfs.append(df_ward)
-                
-                # Mark as completed and save progress immediately
-                completed_wards.add(ward_url)
-                save_progress(prefecture, list(completed_wards))
-                
-                # Save incrementally to avoid data loss
-                if all_dfs:
-                    temp_df = pd.concat(all_dfs, ignore_index=True)
-                    if existing_data is not None:
-                        temp_df = pd.concat([existing_data, temp_df], ignore_index=True)
-                        temp_df = temp_df.drop_duplicates(subset=[0, 1], keep='last')
-                    temp_df.to_csv(output_path, index=False)
-                
-            except KeyboardInterrupt:
-                print(f"\nInterrupted! Progress saved. Resume by running again.")
-                save_progress(prefecture, list(completed_wards))
-                raise
-            except Exception as e:
-                print(f"Error processing ward {ward_url}: {e}")
-                # Continue with next ward even if one fails
-                continue
+            df_ward = asyncio.run(get_df_of_ward(ward_url))
+            all_dfs.append(df_ward)
         
-        # Final save: Concatenate all dataframes for this prefecture
-        if all_dfs:
-            combined_df = pd.concat(all_dfs, ignore_index=True)
-            
-            # Merge with existing data if resuming
-            if existing_data is not None:
-                combined_df = pd.concat([existing_data, combined_df], ignore_index=True)
-                combined_df = combined_df.drop_duplicates(subset=[0, 1], keep='last')  # Remove duplicates
-            
-            combined_df.to_csv(output_path, index=False)
-            print(f"Saved {len(combined_df)} offices for {prefecture}")
+        # Concatenate all dataframes for this prefecture
+        combined_df = pd.concat(all_dfs, ignore_index=True)
         
-        # Clear progress for completed prefecture
-        if prefecture in progress:
-            progress.pop(prefecture)
-            with open(PROGRESS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(progress, f, indent=2, ensure_ascii=False)
+        # Save one CSV file per prefecture
+        # Sanitize filename by removing invalid characters
+        safe_prefecture = prefecture.replace('/', '_').replace('\\', '_')
+        output_path = os.path.join(output_dir, f'{safe_prefecture}.csv')
+        combined_df.to_csv(output_path, index=False)
 
 if __name__ == '__main__':
     main()
