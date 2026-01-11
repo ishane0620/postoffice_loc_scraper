@@ -10,6 +10,7 @@ __pycache__/
 # Virtual environment
 .venv/
 venv/
+venv2/
 env/
 
 # IDE
@@ -17,4 +18,23 @@ env/
 .idea/
 *.swp
 *.swo
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Data files (CSV and Excel outputs)
+*.csv
+*.xlsx
+*.xls
+
+# Data directories
+csvs/
+prefecture_xlsx/
+prefecture_loc_csvs/
+prefecture_loc_csvs_cleaned/
+final_folder/
 
