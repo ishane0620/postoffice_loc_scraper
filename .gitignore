@@ -28,12 +28,10 @@ env/
 
 # Data files (CSV and Excel outputs)
 *.csv
-*.xlsx
-*.xls
+
 
 # Data directories
 csvs/
-prefecture_xlsx/
 prefecture_loc_csvs/
 prefecture_loc_csvs_cleaned/
 final_folder/
