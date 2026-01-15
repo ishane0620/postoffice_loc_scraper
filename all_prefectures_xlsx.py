@@ -119,7 +119,7 @@ def extract_postal_code_prefix(text: str):
     # Normalize dashes in the entire input first
     s = normalize_dashes(s)
     # Regex: optional 〒, optional spaces, 3 digits, optional hyphen, 4 digits
-    m = re.match(r"^〒?\s*(\d{3}-\d{4}|\d{7})\s*", s)
+    m = re.match(r"^〒?\s*(\d*-\d*-?\d*?)\s*", s)
     if m:
         code = m.group(1)
         remainder = s[m.end():].strip()
@@ -317,39 +317,45 @@ def translate_jap_to_eng(jap):
 
 
 
-main_df = pd.DataFrame(columns=['Location ID', 'Region', '地域', 'prefecture', '都道府県', 'municipality', '市区町村', 'asset_id', 'asset_name', '建物名', 'postal_code', 'full_address', '住所', 'Latitude', 'Longitude', 'asset_build_date', 'asset_floors', 'website (for verification)'])
+# main_df = pd.DataFrame(columns=['Location ID', 'Region', '地域', 'prefecture', '都道府県', 'municipality', '市区町村', 'asset_id', 'asset_name', '建物名', 'postal_code', 'full_address', '住所', 'Latitude', 'Longitude', 'asset_build_date', 'asset_floors', 'website (for verification)'])
 
 
-for xlsx in os.listdir('prefecture_xlsx'):
-    # if xlsx == '北海道.xlsx':
-    df = pd.read_excel(os.path.join('prefecture_xlsx', xlsx))
-    prefecture_jp = xlsx.replace('.xlsx', '')
-    triplet = prefecture_map[prefecture_jp]
-    df['都道府県'] = prefecture_jp
-    df['prefecture'] = triplet[0]
-    df ['Region'] = triplet[1]
-    df['地域'] = triplet[2]
-    df.rename(columns={
-        '0': '建物名',
-        '1' : 'website (for verification)'
-    }, inplace = True)
-    df['Location ID'] = None
+# for xlsx in os.listdir('prefecture_xlsx'):
+#     # if xlsx == '北海道.xlsx':
+#     df = pd.read_excel(os.path.join('prefecture_xlsx', xlsx))
+#     prefecture_jp = xlsx.replace('.xlsx', '')
+#     triplet = prefecture_map[prefecture_jp]
+#     df['都道府県'] = prefecture_jp
+#     df['prefecture'] = triplet[0]
+#     df ['Region'] = triplet[1]
+#     df['地域'] = triplet[2]
+#     df.rename(columns={
+#         '0': '建物名',
+#         '1' : 'website (for verification)'
+#     }, inplace = True)
+#     df['Location ID'] = None
     
-    split_address = split_japanese_address(df['2'])
-    df['住所'] = split_address["住所"]
-    df['市区町村'] = split_address["市区町村"]
-    df['postal_code'] = split_address["postal_code"]
+#     split_address = split_japanese_address(df['2'])
+#     df['住所'] = split_address["住所"]
+#     df['市区町村'] = split_address["市区町村"]
+#     df['postal_code'] = split_address["postal_code"]
 
-    df['asset_name'] = translate_jap_to_eng(df['建物名'])
-    df['municipality'] = translate_jap_to_eng(df['市区町村'])
-    df['full_address'] = translate_jap_to_eng(df['住所'])
+#     df['asset_name'] = translate_jap_to_eng(df['建物名'])
+#     df['municipality'] = translate_jap_to_eng(df['市区町村'])
+#     df['full_address'] = translate_jap_to_eng(df['住所'])
 
-    main_df = pd.concat([main_df, df[[col for col in main_df.columns if col in df.columns]]])    # print(translate_jap_to_eng(df['建物名']))
+#     main_df = pd.concat([main_df, df[[col for col in main_df.columns if col in df.columns]]])    # print(translate_jap_to_eng(df['建物名']))
 
 
-os.makedirs('final_folder',exist_ok = True)
-main_df.to_excel(f'final_folder/all_prefectures.xlsx', index=False)
+# os.makedirs('final_folder',exist_ok = True)
+# main_df.to_excel(f'final_folder/all_prefectures.xlsx', index=False)
 # ['municipality', 'asset_id', 'asset_name', 'full_address', 'asset_build_date', 'asset_floors']
 
 
+df = pd.read_excel('final_folder/all_prefectures.xlsx')
+
+split_address = split_japanese_address(df['2'])
+df['住所'] = split_address["住所"]
+df['市区町村'] = split_address["市区町村"]
+df['postal_code'] = split_address["postal_code"]
 

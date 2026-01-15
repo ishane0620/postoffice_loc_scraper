@@ -33,6 +33,7 @@ env/
 # Data directories
 csvs/
 prefecture_loc_csvs/
+prefecture_xlsx/
 prefecture_loc_csvs_cleaned/
-final_folder/
+
 
